@@ -88,7 +88,7 @@ router.get('/viewUser',apiAuth.validateToken, async(req,res) => {
         }
         else{
             res.status(200).json({
-                message : "Success",
+                message : "Success!!!",
                 user: user
             })
         }
