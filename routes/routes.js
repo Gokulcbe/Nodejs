@@ -3,10 +3,6 @@ const Model = require('../models/Model');
 const Post = require('../models/Post');
 const router = express.Router();
 
-router.get('/get/test', async(req,res) => {
-    res.send("Gokul works");
-})
-
 router.post('/addExpense', async(req,res) => {
     try{
         var expense = req.body;
