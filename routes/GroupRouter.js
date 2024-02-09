@@ -108,7 +108,7 @@ router.delete('/deleteGroup', async(req,res) => {
             })
             res.status(200).json({
                 status : "Success",
-                message : "Group deleted Successfully",
+                message : "Group Deleted Successfully!!!",
                 group: deleteGroup
             })
         }
