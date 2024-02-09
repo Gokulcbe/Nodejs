@@ -1,12 +1,12 @@
 const express = require('express')
 const router = express.Router()
-const validator = require('../helper/ApiAuthentication')
+const validator = require('../helper/validation')
 const Expense = require('../models/Expense')
 const Group = require('../models/Groups')
 
 router.post('/addExpense', async(req, res) => {
     try{
-        const expense = req.body
+        var expense = req.body
         const group = await Group.findOne({
             _id : expense.groupId
         })
@@ -16,7 +16,7 @@ router.post('/addExpense', async(req, res) => {
             throw err
         } else {
             if(validator.notNull(expense.expenseName) && validator.notNull(expense.expenseAmount) &&
-                validator.notNull(expense.ExpenseOwner) && validator.notNull(expense.expenseMembers) && validator.notNull(expense.expenseDate)) {
+                validator.notNull(expense.expenseOwner) && validator.notNull(expense.expenseMembers) && validator.notNull(expense.expenseDate)) {
                     const ownervalidation = await validator.groupUserValidation(expense.expenseOwner, expense.groupId);
                     if(!ownervalidation){
                         var err = new Error("Provide a valid group Owner")
@@ -33,8 +33,8 @@ router.post('/addExpense', async(req, res) => {
                         }
                         expense.expensePerMember = expense.expenseAmount / expense.expenseMembers.length
                         expense.currency = group.currency
-                        const newExpense = new Expense(expense)
-                        const createdExp = await newExpense.save()
+                        var newExpense = new Expense(expense)
+                        var createdExp = await newExpense.save()
 
                         const update_response = await Group.addSplit(expense.groupId, expense.expenseAmount, expense.ExpenseOwner, expense.expenseMembers);
                         res.status(200).json({

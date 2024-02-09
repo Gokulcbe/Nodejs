@@ -23,10 +23,12 @@ database.once('connected', () => {
 const routes =require('./routes/routes');
 const userroutes = require('./routes/UserRouter');
 const grouproutes = require('./routes/GroupRouter');
+const expense = require('./routes/ExpenseRouter')
 
 app.use('/api', routes);
 app.use('/user', userroutes);
 app.use('/group', grouproutes);
+app.use('/expense', expense);
 
 app.listen(port, () => {
     console.log("Now listening on port 5000");

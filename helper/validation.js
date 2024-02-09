@@ -1,5 +1,6 @@
 const Model = require('../models/Model');
 const User = require('../models/Users');
+const Group = require('../models/Groups')
 
 exports.notNull = (value) => {
     if(value){
@@ -58,7 +59,7 @@ exports.userValidation = async (email) => {
 }
 
 exports.groupUserValidation = async(email,groupId) => {
-    const groupMembers = await Model.Group.findOne({
+    const groupMembers = await Group.findOne({
         _id : groupId
     }, {
         groupMembers : 1,
