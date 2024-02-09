@@ -37,10 +37,19 @@ router.post('/addExpense', async(req, res) => {
                         const createdExp = await newExpense.save()
 
                         const update_response = await Group.addSplit(expense.groupId, expense.expenseAmount, expense.ExpenseOwner, expense.expenseMembers);
-                        
+                        res.status(200).json({
+                            status : "Success",
+                            message: "New Expense Added",
+                            Id : newExpense._id,
+                            splitUpdateResponse : update_response
+                        })
                     }
                 }
         }
+    } catch (error){
+        res.status(500).json({
+            message : error.message
+        })
     }
 })
 
