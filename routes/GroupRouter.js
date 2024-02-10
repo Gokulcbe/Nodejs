@@ -119,28 +119,5 @@ router.delete('/deleteGroup', async(req,res) => {
     }
 })
 
-exports.addSplit = async(groupId, expenseAmount, expenseOwner, expenseMembers) => {
-    var group = await Group.findOne({
-        _id : groupId
-    })
-    group.groupTotal = group.groupTotal + expenseAmount
-    group.split[0][expenseOwner] += expenseAmount
-    expensePerPerson = expenseAmount/expenseMembers.length
-    expensePerPerson = Math.round((expensePerPerson + Number.EPSILON)*100) / 100;
-    for(var user of expenseMembers){
-        group.split[0][user] -= expensePerPerson
-    } 
-
-    let bal = 0;
-    for(val of Object.entries(group.split[0])){
-        bal += val[1]
-    }
-    group.split[0][expenseOwner] -= bal
-    group.split[0][expenseOwner] = Math.round((group.split[0][expenseOwner] + Number.EPSILON) * 100) / 100;
-
-    return await Group.updateOne({
-        _id : groupId
-    }, group)
-}
 
 module.exports = router;

@@ -3,6 +3,7 @@ const router = express.Router()
 const validator = require('../helper/validation')
 const Expense = require('../models/Expense')
 const Group = require('../models/Groups')
+const GroupExports = require('./GroupExports')
 
 router.post('/addExpense', async(req, res) => {
     try{
@@ -17,7 +18,7 @@ router.post('/addExpense', async(req, res) => {
         } else {
             if(validator.notNull(expense.expenseName) && validator.notNull(expense.expenseAmount) &&
                 validator.notNull(expense.expenseOwner) && validator.notNull(expense.expenseMembers) && validator.notNull(expense.expenseDate)) {
-                    const ownervalidation = await validator.groupUserValidation(expense.expenseOwner, expense.groupId);
+                    var ownervalidation = await validator.groupUserValidation(expense.expenseOwner, expense.groupId);
                     if(!ownervalidation){
                         var err = new Error("Provide a valid group Owner")
                         err.status = 400
@@ -36,7 +37,7 @@ router.post('/addExpense', async(req, res) => {
                         var newExpense = new Expense(expense)
                         var createdExp = await newExpense.save()
 
-                        const update_response = await Group.addSplit(expense.groupId, expense.expenseAmount, expense.ExpenseOwner, expense.expenseMembers);
+                        var update_response = await GroupExports.addSplit(expense.groupId, expense.expenseAmount, expense.ExpenseOwner, expense.expenseMembers);
                         res.status(200).json({
                             status : "Success",
                             message: "New Expense Added",
@@ -47,6 +48,347 @@ router.post('/addExpense', async(req, res) => {
                 }
         }
     } catch (error){
+        res.status(500).json({
+            message : error.message
+        })
+    }
+})
+
+router.get('/viewExpense', async(req,res) => {
+    try{
+        const expense = await Expense.findOne({
+            _id : req.body.id
+        })
+        if(!expense){
+            var err = new Error("No expense found")
+            err.status = 400
+            throw err
+        } else {
+            res.status(200).json({
+                status : "Success",
+                expense : expense
+            })
+        }
+    } catch(error){
+        res.status(500).json({
+            message : error.message
+        })
+    }
+})
+
+router.delete('/deleteExpense', async(req, res) => {
+    try{
+        var expense = await Expense.findOne({
+            _id : req.body.id
+        })
+        if(!expense){
+            var err = new Error("Invaid Expense ID")
+            err.status = 400
+            throw err
+        } else {
+            var deletedExp = await Expense.deleteOne({
+                _id : req.body.id
+            })
+            await GroupExports.clearSplit(expense.groupId, expense.expenseAmount, expense.expenseOwner, expense.expenseMembers);
+            res.status(200).json({
+                status : "Success",
+                deletedExpense : deletedExp
+            })
+        }
+    } catch(error){
+        res.status(500).json({
+            message : error.message
+        })
+    }
+})
+
+router.get('/viewGroupExpense', async(req, res) => {
+    try{
+        const groupExpense = await Expense.find({
+            groupId : req.body.id
+        }).sort({
+            expenseDate : -1
+        })
+        if(groupExpense.length==0){
+            var err = new Error("No Expense found for this group")
+            err.status = 400
+            throw err
+        } else {
+            var totalAmount = 0;
+            for(var amount of groupExpense){
+                totalAmount = totalAmount + amount.expenseAmount;
+            }
+            res.status(200).json({
+                status : "Success",
+                totalAmount : totalAmount,
+                groupExpense : groupExpense
+            })
+        }
+    } catch(error) {
+        res.status(500).json({
+            message : error.message
+        })
+    }
+})
+
+router.get('/viewUserExpense', async(req,res) => {
+    try{
+        const userExpense = await Expense.find({
+            expenseMembers : req.body.user
+        }).sort({
+            expenseDate : -1
+        })
+
+        if(userExpense.length==0){
+            var err = new Error("No user Expense Found")
+            err.status = 400
+            throw err
+        } else {
+            var totalExpense = 0;
+            for(var user of userExpense){
+                totalExpense = totalExpense + user.expensePerMember;
+            }
+            res.status(200).json({
+                status : "Success",
+                expenses : totalExpense,
+                user : userExpense
+            })
+        }
+    } catch(error) {
+        res.status(500).json({
+            message: error.message
+        })
+    }
+})
+
+router.get('/recentUserExpense', async(req,res) => {
+    try {
+        const userExpense = await Expense.find({
+            expenseMembers : req.body.user
+        }).sort({
+            $natural : -1
+        }).limit(5);
+
+        if(userExpense.length==0){
+            var err = new Error("No user Expense Found")
+            err.status = 400
+            throw err
+        } else {
+            res.status(200).json({
+                status : "Success",
+                expense : userExpense
+            })
+        }
+    } catch (error) {
+        res.status(500).json({
+            message : error.message
+        })
+    }
+})
+
+router.get('/groupCategegoryExpense', async(req,res)=> {
+    try{
+        const group = await Expense.aggregate([{
+            $match : {
+                groupId : req.body.id
+            }
+        }, {
+            $group : {
+                _id : "$expenseCategory",
+                amount : {
+                    $sum : "$expenseAmount"
+                }
+            }
+        }, {
+            $sort : {
+                "_id" : 1
+            }
+        }])
+
+        res.status(200).json({
+            status : "Success",
+            expenseCatagory : group
+        })
+    } catch(error){
+        res.status(500).json({
+            message: error.message
+        })
+    }
+})
+
+router.get('/groupMonthlyExpense', async(req,res)=>{
+    try{
+        const group = await Expense.aggregate([{
+            $match : {
+                groupId : req.body.id
+            }
+        }, {
+            $group : {
+                _id : {
+                    month : {
+                        $month : "$expenseDate"
+                    }, 
+                    year : {
+                        $year : "$expenseDate"
+                    }
+                },
+                amount : {
+                    $sum : "$expenseAmount"
+                }
+            }
+        } , {
+            $sort : {
+                "_id.month" : 1
+            }
+        }])
+        res.status(200).json({
+            status : "Success",
+            monthlyExpense : group
+        })
+    } catch(error){
+        res.status(500).json({
+            message : error.message
+        })
+    }
+})
+
+router.get('/viewDailyExpense', async(req,res)=> {
+    try{
+        const group = await Expense.aggregate([{
+            $match : {
+                groupId : req.body.id
+            }
+        } , {
+            $group : {
+                _id : {
+                    day : {
+                        $dayOfMonth : "$expenseDate"
+                    },
+                    month : {
+                        $month : "$expenseDate"
+                    },
+                    year : {
+                        $year : "$expenseDate"
+                    }
+                },
+                amount : {
+                    $sum : "$expenseAmount"
+                }
+            }
+        }, {
+            $sort : {
+                "_id.day" : 1,
+                "_id.month" : 1
+            }
+        }])
+        res.status(200).json({
+            status : "Success",
+            dailyExpense : group
+        })
+    } catch(error){
+        res.status(500).json({
+            message : error.message
+        })
+    }
+})
+
+router.get('/userCategoryExpense', async(req, res) => {
+    try{
+        const user = await Expense.aggregate([{
+            $match : {
+                expenseMembers : req.body.id
+            }
+        }, {
+            $group : {
+                _id : "$expenseCategory",
+                amount : {
+                    $sum : "$expensePerMember"
+                },
+            }
+        }, {
+            $sort : {
+                "_id" : 1
+            }
+        }])
+        res.status(200).json({
+            status : "Success",
+            categoryExpense : user
+        })
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        })
+    }
+})
+
+router.get('/userMonthlyExpense', async(req, res) => {
+    try{
+        const user = await Expense.aggregate([{
+            $match : {
+                expenseMembers : req.body.id
+            }
+        }, {
+            $group : {
+                _id : {
+                    month : {
+                        $month : "$expenseDate"
+                    }
+                }, 
+                amount : {
+                    $sum : "$expensePerMember"
+                }
+            }
+        }, {
+            $sort : {
+                "_id.month" : 1
+            }
+        }])
+        res.status(200).json({
+            status : "Success",
+            userMonthlyExpense : user
+        })
+    } catch(error) {
+        res.status(500).json({
+            message : error.message
+        })
+    }
+})
+
+router.get('/userDailyExpense', async(req,res) => {
+    try{
+        const user = await Expense.aggregate([{
+            $match : {
+                expenseMembers : req.body.id
+            }
+        }, {
+            $group : {
+                _id : {
+                    day : {
+                        $dayOfMonth : "$expenseDate"
+                    },
+                    month : {
+                        $month : "$expenseDate"
+                    }, 
+                    year : {
+                        $year : "$expenseDate"
+                    }
+                },
+                amount : {
+                    $sum : "$expensePerMember"
+                }
+            }
+        }, {
+            $sort : {
+                "_id.day" : -1,
+                "_id.month" : -1,
+                "id.year" : -1
+            }
+        }])
+        res.status(200).json({
+            status : "success",
+            userDailyExpense : user
+        })
+    } catch(error){
         res.status(500).json({
             message : error.message
         })

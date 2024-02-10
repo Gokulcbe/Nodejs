@@ -59,7 +59,7 @@ exports.userValidation = async (email) => {
 }
 
 exports.groupUserValidation = async(email,groupId) => {
-    const groupMembers = await Group.findOne({
+    var groupMembers = await Group.findOne({
         _id : groupId
     }, {
         groupMembers : 1,
