@@ -6,6 +6,7 @@ const validator = require('../helper/validation')
 const bcrypt = require('bcryptjs')
 const apiAuth = require('../helper/ApiAuthentication');
 const Groups = require('../models/Groups');
+const Users = require('../models/Users');
 router.post('/userreg', async(req,res) => {
     try{
         const newUser = new User(req.body)
@@ -95,6 +96,57 @@ router.get('/viewUser',apiAuth.validateToken, async(req,res) => {
     } catch(error){
         res.status(500).json({
             message: error.message
+        })
+    }
+})
+
+router.get('/emailList', async(req,res) => {
+    try{
+        const userList = await Users.find({}, {
+            emailId : 1
+        })
+        if(!userList){
+            var err = new Error("No user Found");
+            err.status = 400
+            throw err
+        } else {
+            var emailList = []
+            for(var email of userList){
+                emailList.push(email.emailId);
+            }
+            res.status(200).json({
+                status : "Success",
+                emailList : emailList
+            })
+        }
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        })
+    }
+})
+
+router.delete('/deleteUser',apiAuth.validateToken, async(req, res) => {
+    try{
+        apiAuth.validateUser(req.user, req.body.id);
+        const user = await validator.userValidation(req.body.id);
+        if(!user){
+            var err = new Error("Invalid User Id");
+            err.status = 400
+            throw err
+        } else {
+            const deletedUser = await User.deleteOne({
+                emailId : req.body.id
+            })
+            res.status(200).json({
+                status : "Success",
+                message: "User deleted",
+                deletedUser : deletedUser
+            })
+        }
+    } catch(error){
+        res.status(500).json({
+            message : error.message
         })
     }
 })

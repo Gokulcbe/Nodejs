@@ -37,7 +37,7 @@ router.post('/addExpense', async(req, res) => {
                         var newExpense = new Expense(expense)
                         var createdExp = await newExpense.save()
 
-                        var update_response = await GroupExports.addSplit(expense.groupId, expense.expenseAmount, expense.ExpenseOwner, expense.expenseMembers);
+                        var update_response = await GroupExports.addSplit(expense.groupId, expense.expenseAmount, expense.expenseOwner, expense.expenseMembers);
                         res.status(200).json({
                             status : "Success",
                             message: "New Expense Added",
@@ -72,6 +72,66 @@ router.get('/viewExpense', async(req,res) => {
     } catch(error){
         res.status(500).json({
             message : error.message
+        })
+    }
+})
+
+router.post('/editExpense', async(req,res)=> {
+    try{
+        var expense = req.body
+        var oldExpense = await Expense.findOne({
+            _id : expense.id
+        })
+        if(!oldExpense || expense.groupId==null || oldExpense.groupId!=expense.groupId){
+            var err = new Error("Invalid Expense")
+            err.status = 400
+            throw err
+        } else {
+            if(validator.notNull(expense.expenseName) && validator.notNull(expense.expenseAmount) && validator.notNull(expense.expenseDate)
+            && validator.notNull(expense.expenseOwner) && validator.notNull(expense.expenseMembers)){
+                var ownervalidation = await validator.groupUserValidation(expense.expenseOwner, expense.groupId);
+                if(!ownervalidation){
+                    var err = new Error("Provide Valid Owner")
+                    err.status = 400
+                    throw err
+                } else{
+                    for(var user of expense.expenseMembers){
+                        var memberValidation = await validator.groupUserValidation(user, expense.groupId);
+                        if(!memberValidation){
+                            var err = new Error("Provide Valid Members");
+                            err.status = 400
+                            throw err
+                        } 
+                    } 
+                            const updatedExpense = await Expense.updateOne({
+                                _id : expense.id
+                            }, {
+                                $set : {
+                                    groupId : expense.groupId,
+                                    expenseName : expense.expenseName,
+                                    expenseDescription : expense.expenseDescription,
+                                    expenseAmount : expense.expenseAmount,
+                                    expenseCategory : expense.expenseCategory,
+                                    expenseCurrency : expense.expenseCurrency,
+                                    expenseDate : expense.expenseDate,
+                                    expenseOwner : expense.expenseOwner,
+                                    expenseMembers : expense.expenseMembers,
+                                    expensePerMember : expense.expenseAmount / expense.expenseMembers.length,
+                                    expenseType : expense.expenseType
+                                }
+                            })
+                            await GroupExports.clearSplit(oldExpense.groupId, oldExpense.expenseAmount, oldExpense.expenseOwner, oldExpense.expenseMembers);
+                            await GroupExports.addSplit(expense.groupId, expense.expenseAmount, expense.expenseOwner, expense.expenseMembers);
+                            res.status(200).json({
+                                status : "Success",
+                                updated : updatedExpense
+                            })
+                }
+            }
+        }
+    } catch(error) {
+        res.status(500).json({
+            message: error.message
         })
     }
 })
